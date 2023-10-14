@@ -333,7 +333,11 @@ void drawGameOverScreen(const Tetris *tetris, int score, int level, int linesCle
 
 void draw(const Tetris *tetris) {
 
-printf("\033[1;1H");
+#ifdef _WIN32
+    printf("\033[1;1H");
+#else
+    system("clear");
+#endif
 
 #ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO csbi;
