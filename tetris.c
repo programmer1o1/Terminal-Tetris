@@ -1,3 +1,13 @@
+/*
+  TETRIS SOURCE CODE
+  THERE IS ONE FOR WINDOWS
+  THERE IS ONE FOR UNIX
+  LINUX WORKED PERFECTLY FINE (AT LEAST FOR KDE)
+  WINDOWS KINDA WORKED BUT IT'S DIFFERENT FROM LINUX ( THERE ARE BUGS )
+  ON WINDOWS. HIGHER SPEED IS SLOWER WHILE LOWER SPEED IS FASTER. ( LINE 464 )
+  I HAVEN'T TESTED IT IF NEW LEVEL SLOW IT DOWN OR SPEED IT UP.
+  CREATED WITH SOME HELP FROM AI
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -10,7 +20,7 @@
 #else
 #include <unistd.h>
 #include <termios.h>
-#include <fcntl.h> // Add this line
+#include <fcntl.h>
 #include <sys/ioctl.h>
 #endif
 
@@ -161,7 +171,7 @@ int main() {
         }
     }
     srand(time(0));
-    tetris.nextTetromino = (rand() % 8); // Initialize the next Tetromino       
+    tetris.nextTetromino = (rand() % 8); // Initialize the next Tetromino
     spawnTetromino(&tetris);
     tetris.level = 1;
     tetris.linesCleared = 0;
@@ -288,7 +298,6 @@ void drawGameOverScreen(const Tetris *tetris, int score, int level, int linesCle
     int vertical_padding = (w.ws_row - 9) / 2;
 #endif
 
-    // Position the cursor at the starting point of the game over screen
     printf("\033[%d;%dH", vertical_padding);
 
     const char *gameOverText[] = {
@@ -318,7 +327,7 @@ void drawGameOverScreen(const Tetris *tetris, int score, int level, int linesCle
         } else {
             printf("%s", gameOverText[i]);
         }
-        printf("\033[E"); // Move the cursor to the next line
+        printf("\033[E");
     }
 }
 
@@ -453,9 +462,9 @@ void input(Tetris *tetris) {
 void update(Tetris *tetris) {
     static int timeCounter = 0;
 #ifdef _WIN32
-    int speed = 110 - (tetris->level * 10); // Adjust speed based on level
+    int speed = 110 - (tetris->level * 10);
 #else
-    int speed = 1000 - (tetris->level - 1) * 100; // Adjust speed based on level
+    int speed = 1000 - (tetris->level - 1) * 100;
 #endif
 
     if (timeCounter >= speed) {
