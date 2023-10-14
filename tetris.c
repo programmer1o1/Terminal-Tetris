@@ -273,28 +273,36 @@ void drawNextTetromino(Tetromino tetromino, int row) {
 }
 
 void drawGameOverScreen(const Tetris *tetris, int score, int level, int linesCleared) {
+    // Call draw function to draw the game board
+    draw(tetris);
+
+#ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    int horizontal_padding = (csbi.srWindow.Right - csbi.srWindow.Left + 1 - BOARD_WIDTH) / 2;
+    int vertical_padding = (csbi.srWindow.Bottom - csbi.srWindow.Top + 1 - 9) / 2;
+#else
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    int horizontal_padding = (w.ws_col - BOARD_WIDTH) / 2;
+    int vertical_padding = (w.ws_row - 9) / 2;
+#endif
+
+    // Position the cursor at the starting point of the game over screen
+    printf("\033[%d;%dH", vertical_padding);
+
     const char *gameOverText[] = {
         "+---------------+",
         "|   GAME OVER   |",
         "+---------------+",
         "| Score: 000000 |",
         "| Level: 01     |",
+        "| Lines: 00     |",
         "+---------------+",
         "| Press any key |",
         "| to exit       |",
         "+---------------+"
     };
-
-    // Call draw function to draw the game board
-    draw(tetris);
-
-    struct winsize w;
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-    int horizontal_padding = (w.ws_col - BOARD_WIDTH) / 2;
-    int vertical_padding = (w.ws_row - (sizeof(gameOverText) / sizeof(gameOverText[0]))) / 2;
-
-    // Position the cursor at the starting point of the game over screen
-    printf("\033[%d;%dH", vertical_padding);
 
     for (int i = 0; i < sizeof(gameOverText) / sizeof(gameOverText[0]); ++i) {
         for (int j = 0; j < horizontal_padding - BOARD_WIDTH; ++j) {
@@ -315,24 +323,20 @@ void drawGameOverScreen(const Tetris *tetris, int score, int level, int linesCle
 }
 
 void draw(const Tetris *tetris) {
-#ifdef _WIN32
-    system("cls");
-#else
-    system("clear");
-#endif
 
-    struct winsize w;
+printf("\033[1;1H");
+
 #ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-    w.ws_col = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-    w.ws_row = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    int horizontal_padding = (csbi.srWindow.Right - csbi.srWindow.Left + 1 - BOARD_WIDTH) / 2;
+    int vertical_padding = (csbi.srWindow.Bottom - csbi.srWindow.Top + 1 - BOARD_HEIGHT) / 2;
 #else
+    struct winsize w;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-#endif
-
     int horizontal_padding = (w.ws_col - BOARD_WIDTH) / 2;
     int vertical_padding = (w.ws_row - BOARD_HEIGHT) / 2;
+#endif
 
     for (int i = 0; i < vertical_padding; ++i) {
         putchar('\n');
@@ -448,7 +452,11 @@ void input(Tetris *tetris) {
 
 void update(Tetris *tetris) {
     static int timeCounter = 0;
+#ifdef _WIN32
+    int speed = 110 - (tetris->level * 10); // Adjust speed based on level
+#else
     int speed = 1000 - (tetris->level - 1) * 100; // Adjust speed based on level
+#endif
 
     if (timeCounter >= speed) {
         if (!move(tetris, 0, 1)) {
@@ -464,6 +472,7 @@ void update(Tetris *tetris) {
     } else {
         timeCounter += 25;
     }
+
 #ifdef _WIN32
     Sleep(25);
 #else
@@ -584,7 +593,7 @@ int _kbhit() {
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
     fcntl(STDIN_FILENO, F_SETFL, oldf);
 
-    if (ch != EOF) {
+    if (ch != (char)EOF) {
         ungetc(ch, stdin);
         return 1;
     }
