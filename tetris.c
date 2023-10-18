@@ -1,16 +1,14 @@
-/*
+/* 
   TETRIS SOURCE CODE
   THERE IS ONE FOR WINDOWS
   THERE IS ONE FOR UNIX
   LINUX WORKED PERFECTLY FINE (AT LEAST FOR KDE)
-  WINDOWS KINDA WORKED BUT IT'S DIFFERENT FROM LINUX ( THERE ARE BUGS )
-  ON WINDOWS. HIGHER SPEED IS SLOWER WHILE LOWER SPEED IS FASTER. ( LINE 464 )
-  I HAVEN'T TESTED IT IF NEW LEVEL SLOW IT DOWN OR SPEED IT UP.
-  CREATED WITH SOME HELP FROM AI
+  WINDOWS KINDA WORKED BUT IT'S DIFFERENT FROM LINUX ( THERE ARE BUGS, SPEED DIFFERENCE)
 */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <time.h>
 #include <string.h>
 
@@ -20,7 +18,7 @@
 #else
 #include <unistd.h>
 #include <termios.h>
-#include <fcntl.h>
+#include <fcntl.h> 
 #include <sys/ioctl.h>
 #endif
 
@@ -124,6 +122,29 @@ const char *TETROMINO_SHAPES[][4] = {
      "#..."
      "...."}};
 
+
+// I don't know why but this fixed it?
+const char *INVERTED_L_SHAPES[] = {
+    "...."
+    "...."
+    "###."
+    "..#.",
+
+    "...."
+    "..#."
+    ".##."
+    "..#.",
+
+    "...."
+    "...."
+    ".#.."
+    "###.",
+
+    "...."
+    ".#.."
+    "##.."
+    ".#.."};
+
 typedef struct {
     int x, y;
 } Point;
@@ -171,7 +192,7 @@ int main() {
         }
     }
     srand(time(0));
-    tetris.nextTetromino = (rand() % 8); // Initialize the next Tetromino
+    tetris.nextTetromino = (rand() % 8); // Initialize the next Tetromino       
     spawnTetromino(&tetris);
     tetris.level = 1;
     tetris.linesCleared = 0;
@@ -209,7 +230,7 @@ while (1) {
         break;
     } else {
     #ifdef _WIN32
-        Sleep(50);
+        Sleep(1);
     #else
         usleep(50 * 1000);
     #endif
@@ -260,7 +281,13 @@ void spawnTetromino(Tetris *tetris) {
     tetris->nextTetromino = (rand() % 8);
     tetris->rotation = 0;
 
-    const char *shape = TETROMINO_SHAPES[tetris->currentTetromino][tetris->rotation];
+    const char *shape = NULL;
+    if (tetris->currentTetromino == INV_L) {
+        shape = INVERTED_L_SHAPES[tetris->rotation];
+    } else {
+        shape = TETROMINO_SHAPES[tetris->currentTetromino][tetris->rotation];
+    }
+
     int idx = 0;
     for (int y = 0; y < 4; ++y) {
         for (int x = 0; x < 4; ++x) {
@@ -282,6 +309,19 @@ void drawNextTetromino(Tetromino tetromino, int row) {
     }
 }
 
+uint64_t getCurrentTimeMillis() {
+#ifdef _WIN32
+    LARGE_INTEGER frequency, currentTime;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&currentTime);
+    return (currentTime.QuadPart * 1000) / frequency.QuadPart;
+#else
+    struct timespec tspec;
+    clock_gettime(CLOCK_MONOTONIC, &tspec);
+    return tspec.tv_sec * 1000 + tspec.tv_nsec / 1000000;
+#endif
+}
+
 void drawGameOverScreen(const Tetris *tetris, int score, int level, int linesCleared) {
     // Call draw function to draw the game board
     draw(tetris);
@@ -298,6 +338,7 @@ void drawGameOverScreen(const Tetris *tetris, int score, int level, int linesCle
     int vertical_padding = (w.ws_row - 9) / 2;
 #endif
 
+    // Position the cursor at the starting point of the game over screen
     printf("\033[%d;%dH", vertical_padding);
 
     const char *gameOverText[] = {
@@ -327,14 +368,24 @@ void drawGameOverScreen(const Tetris *tetris, int score, int level, int linesCle
         } else {
             printf("%s", gameOverText[i]);
         }
-        printf("\033[E");
+        printf("\033[E"); // Move the cursor to the next line
     }
 }
 
 void draw(const Tetris *tetris) {
-
 #ifdef _WIN32
-    printf("\033[1;1H");
+    // Windows specific code
+    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+    CHAR_INFO consoleBuffer[BOARD_HEIGHT][BOARD_WIDTH];
+
+    for (int y = 0; y < BOARD_HEIGHT; y++) {
+        for (int x = 0; x < BOARD_WIDTH; x++) {
+            consoleBuffer[y][x].Char.AsciiChar = tetris->board[y][x];
+            consoleBuffer[y][x].Attributes = BACKGROUND_BLUE | BACKGROUND_RED | BACKGROUND_INTENSITY;;
+        }
+    }
+
+	printf("\033[1;1H");
 #else
     system("clear");
 #endif
@@ -464,14 +515,15 @@ void input(Tetris *tetris) {
 }
 
 void update(Tetris *tetris) {
-    static int timeCounter = 0;
+    static uint64_t lastUpdateTimeMillis = 0;
+    uint64_t currentTimeMillis = getCurrentTimeMillis();
 #ifdef _WIN32
-    int speed = 110 - (tetris->level * 10);
+    int speed = 1000 - (tetris->level - 1) * 100; // Adjust speed based on level
 #else
-    int speed = 1000 - (tetris->level - 1) * 100;
+    int speed = 1000 - (tetris->level - 1) * 100; // Adjust speed based on level
 #endif
 
-    if (timeCounter >= speed) {
+    if (currentTimeMillis - lastUpdateTimeMillis >= speed) {
         if (!move(tetris, 0, 1)) {
             lockTetromino(tetris);
             spawnTetromino(tetris);
@@ -481,15 +533,15 @@ void update(Tetris *tetris) {
                 tetris->gameOver = true;
             }
         }
-        timeCounter = 0;
+        lastUpdateTimeMillis = currentTimeMillis;
     } else {
-        timeCounter += 25;
+        lastUpdateTimeMillis += 25;
     }
 
 #ifdef _WIN32
-    Sleep(25);
+    Sleep(1);
 #else
-    usleep(25 * 1000);
+    usleep(16000);
 #endif
 }
 
@@ -519,20 +571,24 @@ void rotate(Tetris *tetris) {
     Point newPositions[4];
     memcpy(newPositions, tetris->currentPositions, sizeof(Point) * 4);
 
+    // Corrected pivot indices for different tetrominos
     int pivotIndex;
     switch (tetris->currentTetromino) {
         case I:
-            pivotIndex = 2;
-            break;
         case J:
         case L:
+        case T: 
+            pivotIndex = 1; // Since you use 0-based index
+            break;
         case S:
-        case T:
         case Z:
-            pivotIndex = 1;
+            pivotIndex = 0;
             break;
         case O:
             return; // O shape doesn't need rotation
+        case INV_L: 
+            pivotIndex = 2; // Inverted L has different pivot
+            break;
     }
 
     for (int i = 0; i < 4; ++i) {
@@ -540,6 +596,7 @@ void rotate(Tetris *tetris) {
             rotatePoint(&newPositions[pivotIndex], &newPositions[i]);
         }
     }
+
 
     // Wall kick
     int offsetX[] = {0, 1, -1, 2, -2};
