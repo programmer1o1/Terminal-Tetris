@@ -2,8 +2,6 @@
   TETRIS SOURCE CODE
   THERE IS ONE FOR WINDOWS
   THERE IS ONE FOR UNIX
-  LINUX WORKED PERFECTLY FINE (AT LEAST FOR KDE)
-  WINDOWS KINDA WORKED BUT IT'S DIFFERENT FROM LINUX ( THERE ARE BUGS, SPEED DIFFERENCE)
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -123,7 +121,6 @@ const char *TETROMINO_SHAPES[][4] = {
      "...."}};
 
 
-// I don't know why but this fixed it?
 const char *INVERTED_L_SHAPES[] = {
     "...."
     "...."
@@ -192,7 +189,7 @@ int main() {
         }
     }
     srand(time(0));
-    tetris.nextTetromino = (rand() % 8); // Initialize the next Tetromino       
+    tetris.nextTetromino = (rand() % 8); 
     spawnTetromino(&tetris);
     tetris.level = 1;
     tetris.linesCleared = 0;
@@ -201,7 +198,7 @@ int main() {
 
     bool game_over_screen_displayed = false;
 
-    // Game loop
+
 while (1) {
     if (!tetris.paused && !tetris.gameOver) {
         draw(&tetris);
@@ -210,7 +207,6 @@ while (1) {
     } else if (tetris.gameOver && !game_over_screen_displayed) {
         game_over_screen_displayed = true;
         drawGameOverScreen(&tetris, tetris.score, tetris.level, tetris.linesCleared);
-        // Wait for user input to exit the game
         _getch();
     #ifdef _WIN32
         system("cls");
@@ -262,10 +258,9 @@ void removeFullLines(Tetris *tetris) {
         }
     }
 
-    // Update the player's score and lines cleared based on the number of lines removed
     if (linesRemoved > 0) {
         int lineScore[] = {0, 100, 300, 500, 800};
-        int bonus = (linesRemoved - 1) * 100; // Add a bonus for clearing multiple lines at once
+        int bonus = (linesRemoved - 1) * 100;
         tetris->score += (lineScore[linesRemoved] + bonus) * tetris->level;
         tetris->linesCleared += linesRemoved;
 
@@ -276,7 +271,6 @@ void removeFullLines(Tetris *tetris) {
 }
 
 void spawnTetromino(Tetris *tetris) {
-    // Set the current Tetromino and generate the next one
     tetris->currentTetromino = tetris->nextTetromino;
     tetris->nextTetromino = (rand() % 8);
     tetris->rotation = 0;
@@ -323,7 +317,6 @@ uint64_t getCurrentTimeMillis() {
 }
 
 void drawGameOverScreen(const Tetris *tetris, int score, int level, int linesCleared) {
-    // Call draw function to draw the game board
     draw(tetris);
 
 #ifdef _WIN32
@@ -338,7 +331,6 @@ void drawGameOverScreen(const Tetris *tetris, int score, int level, int linesCle
     int vertical_padding = (w.ws_row - 9) / 2;
 #endif
 
-    // Position the cursor at the starting point of the game over screen
     printf("\033[%d;%dH", vertical_padding);
 
     const char *gameOverText[] = {
@@ -368,13 +360,12 @@ void drawGameOverScreen(const Tetris *tetris, int score, int level, int linesCle
         } else {
             printf("%s", gameOverText[i]);
         }
-        printf("\033[E"); // Move the cursor to the next line
+        printf("\033[E"); 
     }
 }
 
 void draw(const Tetris *tetris) {
 #ifdef _WIN32
-    // Windows specific code
     HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     CHAR_INFO consoleBuffer[BOARD_HEIGHT][BOARD_WIDTH];
 
@@ -482,6 +473,50 @@ void draw(const Tetris *tetris) {
 }
 
 void input(Tetris *tetris) {
+#ifdef _WIN32
+    HANDLE hInput = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD numEvents;
+    GetNumberOfConsoleInputEvents(hInput, &numEvents);
+
+    if (numEvents) {
+        INPUT_RECORD events[10];
+        ReadConsoleInput(hInput, events, 10, &numEvents);
+
+        for (uint32_t i = 0; i < numEvents; ++i) {
+            if (events[i].EventType == KEY_EVENT && events[i].Event.KeyEvent.bKeyDown) {
+                switch (events[i].Event.KeyEvent.wVirtualKeyCode) {
+                    case 'A':
+                        move(tetris, -1, 0);
+                        break;
+                    case 'D':
+                        move(tetris, 1, 0);
+                        break;
+                    case 'S':
+                        move(tetris, 0, 1);
+                        break;
+                    case 'W':
+                        rotate(tetris);
+                        break;
+                    case VK_SPACE:
+                        while (move(tetris, 0, 1)) {}
+                        lockTetromino(tetris);
+                        removeFullLines(tetris);
+                        spawnTetromino(tetris); 
+                        break;
+                    case 'Q':
+                        tetris->gameOver = true;
+                        break;
+                    case 'P':
+                        tetris->paused = !tetris->paused;
+                        break;
+                    case 'G':
+                        tetris->showGhost = !tetris->showGhost;
+                        break;
+                }
+            }
+        }
+    }
+#else
     if (_kbhit()) {
         char key = _getch();
         switch (key) {
@@ -500,6 +535,8 @@ void input(Tetris *tetris) {
             case ' ':
                 while (move(tetris, 0, 1)) {}
                 lockTetromino(tetris);
+				removeFullLines(tetris);
+				spawnTetromino(tetris); 
                 break;
             case 'q':
                 tetris->gameOver = true;
@@ -512,39 +549,50 @@ void input(Tetris *tetris) {
                 break;
         }
     }
+#endif
 }
 
 void update(Tetris *tetris) {
     static uint64_t lastUpdateTimeMillis = 0;
-    uint64_t currentTimeMillis = getCurrentTimeMillis();
+    uint64_t currentTimeMillis;
+    int speed = 1000 - (tetris->level - 1) * 100;
+
 #ifdef _WIN32
-    int speed = 1000 - (tetris->level - 1) * 100; // Adjust speed based on level
+    LARGE_INTEGER frequency, currentTime;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&currentTime);
+    currentTimeMillis = (currentTime.QuadPart * 1000) / frequency.QuadPart;
 #else
-    int speed = 1000 - (tetris->level - 1) * 100; // Adjust speed based on level
+    struct timespec tspec;
+    clock_gettime(CLOCK_MONOTONIC, &tspec);
+    currentTimeMillis = tspec.tv_sec * 1000 + tspec.tv_nsec / 1000000;
 #endif
 
     if (currentTimeMillis - lastUpdateTimeMillis >= speed) {
         if (!move(tetris, 0, 1)) {
             lockTetromino(tetris);
+            removeFullLines(tetris);
             spawnTetromino(tetris);
 
-            // Check for game over condition (new Tetromino spawned in an invalid position)
             if (!isValidPosition(tetris, tetris->currentPositions)) {
                 tetris->gameOver = true;
             }
         }
         lastUpdateTimeMillis = currentTimeMillis;
     } else {
-        lastUpdateTimeMillis += 25;
-    }
-
 #ifdef _WIN32
-    Sleep(1);
-#else
-    usleep(16000);
-#endif
+static uint64_t lastFrameTime = 0;
+uint64_t currentTime = getCurrentTimeMillis();
+uint64_t elapsedTime = currentTime - lastFrameTime;
+if (elapsedTime < 16) {
+    Sleep(16 - elapsedTime);
 }
-
+lastFrameTime = currentTime;
+#else
+        usleep(16000);
+#endif
+    }
+}
 
 bool move(Tetris *tetris, int dx, int dy) {
     Point newPositions[4];
@@ -571,23 +619,22 @@ void rotate(Tetris *tetris) {
     Point newPositions[4];
     memcpy(newPositions, tetris->currentPositions, sizeof(Point) * 4);
 
-    // Corrected pivot indices for different tetrominos
     int pivotIndex;
     switch (tetris->currentTetromino) {
         case I:
         case J:
         case L:
         case T: 
-            pivotIndex = 1; // Since you use 0-based index
+            pivotIndex = 1; 
             break;
         case S:
         case Z:
             pivotIndex = 0;
             break;
         case O:
-            return; // O shape doesn't need rotation
+            return; 
         case INV_L: 
-            pivotIndex = 2; // Inverted L has different pivot
+            pivotIndex = 2; 
             break;
     }
 
@@ -597,8 +644,6 @@ void rotate(Tetris *tetris) {
         }
     }
 
-
-    // Wall kick
     int offsetX[] = {0, 1, -1, 2, -2};
     for (int i = 0; i < 5; ++i) {
         bool valid = true;
@@ -638,9 +683,13 @@ void lockTetromino(Tetris *tetris) {
     for (int i = 0; i < 4; ++i) {
         int x = tetris->currentPositions[i].x;
         int y = tetris->currentPositions[i].y;
+
+        if (x < 0 || x >= BOARD_WIDTH || y < 0 || y >= BOARD_HEIGHT || tetris->board[y][x] != '.') {
+            continue;
+        }
+
         tetris->board[y][x] = '#';
     }
-    removeFullLines(tetris);
 }
 
 int _kbhit() {
