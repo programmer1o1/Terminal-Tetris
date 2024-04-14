@@ -21,11 +21,11 @@ Simply do `gcc tetris.c -o tetris` and that's all.
 
 # Screenshots
 
-![terminaltetris](https://github.com/programmer1o1/Terminal-Tetris/assets/111426360/0a41b317-5920-4bec-bffe-2829f0810ecc)
+![tetris](https://github.com/programmer1o1/Terminal-Tetris/assets/111426360/d008c6fa-9134-4d14-a0c3-15a4f132c060)
 
-![](https://github.com/programmer1o1/Terminal-Tetris/assets/111426360/c9ee8363-c3b4-4636-af4c-51cb2ab7d647)
+![2024-04-14_16-39_1](https://github.com/programmer1o1/Terminal-Tetris/assets/111426360/84b14c78-2c0b-45ef-8822-f5afb0153414)
 
-![](https://github.com/programmer1o1/Terminal-Tetris/assets/111426360/42576470-4eea-45ab-96a0-bcada3ca9858)
+![2024-04-14_16-39](https://github.com/programmer1o1/Terminal-Tetris/assets/111426360/73aa9ae1-bfea-4323-bb3c-ce96d8c5e8a1)
 
 
 
